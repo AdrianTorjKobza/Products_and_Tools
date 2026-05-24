@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg: #131314;
+      --panel: #1e1f20;
+      --text: #e3e3e3;
+      --accent: #a8cdfc;
+      --border: #444746;
+    }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+    }
+
+    h2 { font-size: 16px; margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; color: var(--accent); }
+    .field { margin-bottom: 14px; }
+    label { display: block; font-size: 11px; text-transform: uppercase; tracking: 0.5px; margin-bottom: 6px; color: #aaa; }
+    select, input[type="range"] {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    .status-card {
+      background: #2a2115;
+      border: 1px solid #46341b;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .status-card code { background: #000; padding: 2px 4px; border-radius: 4px; color: #ffb4a2; }
+    .success { border-color: #2b4c2b; background: #162416; }
+  </style>
+  
+</head>
+<body>
+  <h2>Prompt Optimizer Settings</h2>
+  
+  <div id="connection-error" class="status-card">
+    <strong>Ollama Engine Offline</strong>
+    <p>Could not connect to local host. Please follow these setup steps:</p>
+    <ol style="padding-left: 16px; margin: 4px 0;">
+      <li>Install Ollama from <a href="https://ollama.com" target="_blank" style="color:var(--accent)">ollama.com</a></li>
+      <li>Pull a model down: <code>ollama run llama3</code></li>
+      <li>Keep the desktop terminal open and refresh this tab</li>
+    </ol>
+  </div>
+
+  <div id="active-ui">
+    <div class="field">
+      <label for="model-select">Local AI Optimization Model</label>
+      <select id="model-select"><option>Scanning models...</option></select>
+    </div>
+    <div class="field">
+      <label id="slider-label" for="level-slider">Compression Mode: Balanced (Level 1)</label>
+      <input type="range" id="level-slider" min="0" max="3" value="1">
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

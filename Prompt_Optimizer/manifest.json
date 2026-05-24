@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Optimizer & Token Saver",
+  "version": "0.1",
+  "description": "Optimizes prompts directly inside ChatGPT and Gemini to reduce token usage and save API costs using local Ollama models.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:11434/*",
+    "http://localhost:11434/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
