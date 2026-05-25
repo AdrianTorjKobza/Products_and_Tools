@@ -1,6 +1,6 @@
 # RISC-V Instruction Visualizer
 
-An interactive, browser-based RISC-V assembly simulator and educational debugger. Write assembly code, step through execution one instruction at a time, and watch register state update in real time — with optional AI-powered natural-language explanations powered by Claude.
+An interactive, browser-based RISC-V assembly simulator and educational debugger. Write assembly code, step through execution one instruction at a time, and watch register state update in real time; with optional AI-powered natural-language explanations powered by Claude.
 
 ---
 
@@ -10,7 +10,7 @@ An interactive, browser-based RISC-V assembly simulator and educational debugger
 - Syntax-aware editor with full comment support (`#`)
 - Active instruction highlighted in **yellow** as you step through code
 - Highlight stays in sync when scrolling long programs
-- Editable at any time — the simulator resets automatically on change
+- Editable at any time; the simulator resets automatically on change
 
 ### Step-Through Execution
 - **Step** — execute one instruction at a time
@@ -102,8 +102,8 @@ Paste an [Anthropic API key](https://console.anthropic.com/) into the key bar at
 
 1. Go to [console.anthropic.com](https://console.anthropic.com/) and create an API key
 2. Open the visualizer and paste the key (`sk-ant-...`) into the key bar at the top
-3. Click **Save** — the status indicator turns green
-4. Step through or run your program — each instruction gets a plain-English explanation in the log
+3. Click **Save** - the status indicator turns green. Key validation is perfomed during runtime.
+4. Step through or run your program - each instruction gets a plain-English explanation in the log
 
 The key is stored only in memory for the current session and never sent anywhere other than the Anthropic API. Close the tab and it's gone.
 
