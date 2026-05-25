@@ -139,5 +139,5 @@ The application is intentionally kept as a single HTML file for maximum portabil
 
 ## Acknowledgements
 
-- [RISC-V International](https://riscv.org/) — open ISA specification
-- [RISC-V Vector Extension Specification](https://github.com/riscv/riscv-v-spec) — RVV reference
+- [RISC-V International](https://riscv.org/) - open ISA specification
+- [RISC-V Vector Extension Specification](https://github.com/riscv/riscv-v-spec) - RVV reference
