@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RISC-V Instruction Visualizer</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --bg4: #30363d;
+    --border: #30363d;
+    --border2: #484f58;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.1);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,0.12);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.1);
+    --accent: #58a6ff;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 48px 1fr auto;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── top bar ── */
+  #topbar {
+    grid-column: 1/3;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+  }
+  #topbar .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: .04em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #topbar .logo svg { width: 18px; height: 18px; }
+  #topbar .divider { width: 1px; height: 20px; background: var(--border); }
+  #topbar .pc-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 10px;
+  }
+  #topbar .spacer { flex: 1; }
+  #topbar .fmt-group {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  #topbar .fmt-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    background: transparent;
+    color: var(--text2);
+    border: none;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  #topbar .fmt-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  #topbar .fmt-btn.active { background: var(--bg4); color: var(--text); }
+  #topbar .fmt-btn:hover:not(.active) { background: var(--bg3); }
+  .ctrl-group { display: flex; gap: 6px; }
+  .btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg4); border-color: var(--border2); }
+  .btn:active { opacity: .8; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn.primary { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+  .btn.primary:hover { background: rgba(88,166,255,.18); }
+  .btn.reset { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .btn.reset:hover { background: rgba(248,81,73,.18); }
+
+  /* ── editor pane ── */
+  #editor-pane {
+    grid-column: 1;
+    grid-row: 2;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #editor-pane .pane-header, #reg-pane .pane-header {
+    padding: 6px 14px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  #editor-wrap {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  #asm-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 10px 14px;
+    overflow: hidden;
+    color: transparent;
+    z-index: 1;
+  }
+  .asm-line { display: block; white-space: pre; }
+  .asm-line.active { background: rgba(210,153,34,0.18); border-radius: 2px; }
+  #asm-input {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 10px 14px;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    outline: none;
+    resize: none;
+    flex: 1;
+    caret-color: var(--accent);
+    position: relative;
+    z-index: 2;
+    tab-size: 4;
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+
+  /* ── register pane ── */
+  #reg-pane {
+    grid-column: 2;
+    grid-row: 2;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #reg-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px 12px;
+  }
+  #reg-scroll::-webkit-scrollbar { width: 6px; }
+  #reg-scroll::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  .reg-section-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 10px 4px 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 4px; }
+  .reg-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: background .2s;
+  }
+  .reg-row.changed { background: var(--green-bg); }
+  .reg-name { color: var(--text2); display: flex; flex-direction: column; gap: 0; }
+  .reg-alias { font-size: 9px; color: var(--text3); font-family: var(--sans); }
+  .reg-val { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+
+  .vec-section { margin-bottom: 4px; }
+  .vec-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 7px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: background .2s;
+    margin-bottom: 2px;
+  }
+  .vec-row.changed { background: var(--green-bg); }
+  .vec-name { color: var(--text2); min-width: 26px; }
+  .vec-cells { display: flex; gap: 3px; flex-wrap: wrap; }
+  .vec-cell {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--text);
+  }
+  .vec-cell.nz { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+
+  /* ── console ── */
+  #console-pane {
+    grid-column: 1/3;
+    grid-row: 3;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #console-pane .pane-header {
+    padding: 5px 14px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  #console-out {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  #console-out::-webkit-scrollbar { width: 5px; }
+  #console-out::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+  .log-ok   { color: var(--green); }
+  .log-err  { color: var(--red); }
+  .log-info { color: var(--text2); }
+  .log-warn { color: var(--yellow); }
+
+  /* ── console resize handle ── */
+  #console-resize-handle {
+    grid-column: 1/3;
+    height: 5px;
+    background: var(--border);
+    cursor: ns-resize;
+    transition: background .15s;
+    flex-shrink: 0;
+  }
+  #console-resize-handle:hover, #console-resize-handle.dragging { background: var(--blue); }
+
+  /* ── AI explanation ── */
+  .log-ai {
+    color: var(--text);
+    background: var(--bg3);
+    border-left: 2px solid var(--blue);
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 0 4px 4px 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+  .log-ai-pending {
+    color: var(--text3);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-style: italic;
+    padding: 2px 0 2px 10px;
+  }
+
+  /* ── API key prompt ── */
+  #api-key-bar {
+    grid-column: 1/3;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  #api-key-bar input {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 4px 10px;
+    outline: none;
+    width: 300px;
+  }
+  #api-key-bar input:focus { border-color: var(--blue); }
+  #api-key-bar .dismiss { cursor: pointer; color: var(--text3); font-size: 16px; line-height:1; margin-left:auto; }
+  #api-key-bar .dismiss:hover { color: var(--text); }
+
+  /* ── console pane initial height, resizable via handle ── */
+  #console-pane { height: 240px; min-height: 80px; max-height: 60vh; flex-shrink: 0; }
+
+  /* ── running animation on Run All button ── */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .btn.running { animation: pulse 1s infinite; }
+
+  /* ── scrollbars for editor ── */
+  #asm-input::-webkit-scrollbar { width: 5px; height: 5px; }
+  #asm-input::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="5" width="16" height="9" rx="1.5" stroke="#58a6ff" stroke-width="1.2"/>
+        <rect x="4" y="8" width="2" height="3" rx=".5" fill="#58a6ff"/>
+        <rect x="8" y="7" width="2" height="4" rx=".5" fill="#3fb950"/>
+        <rect x="12" y="9" width="2" height="2" rx=".5" fill="#d29922"/>
+        <line x1="3" y1="3" x2="3" y2="5" stroke="#58a6ff" stroke-width="1.2"/>
+        <line x1="9" y1="2" x2="9" y2="5" stroke="#58a6ff" stroke-width="1.2"/>
+        <line x1="15" y1="3" x2="15" y2="5" stroke="#58a6ff" stroke-width="1.2"/>
+        <line x1="3" y1="14" x2="3" y2="16" stroke="#58a6ff" stroke-width="1.2"/>
+        <line x1="9" y1="14" x2="9" y2="17" stroke="#58a6ff" stroke-width="1.2"/>
+        <line x1="15" y1="14" x2="15" y2="16" stroke="#58a6ff" stroke-width="1.2"/>
+      </svg>
+      RISC-V Visualizer
+    </div>
+    <div class="divider"></div>
+    <span class="pc-badge" id="pc-display">PC: 0x0000</span>
+    <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="step-display">step 0 / 0</span>
+    <div class="spacer"></div>
+    <div class="fmt-group">
+      <button class="fmt-btn active" id="fmt-hex" onclick="setFmt('hex')">HEX</button>
+      <button class="fmt-btn" id="fmt-dec" onclick="setFmt('dec')">DEC</button>
+      <button class="fmt-btn" id="fmt-bin" onclick="setFmt('bin')">BIN</button>
+    </div>
+    <div class="ctrl-group">
+      <button class="btn reset" onclick="resetSim()">⟳ Reset</button>
+      <button class="btn" id="btn-back" onclick="stepBack()" disabled>◀ Back</button>
+      <button class="btn primary" id="btn-step" onclick="stepForward()">▶ Step</button>
+      <button class="btn" id="btn-run" onclick="runAll()">▶▶ Run All</button>
+    </div>
+  </div>
+
+  <!-- API KEY BAR -->
+  <div id="api-key-bar">
+    <span>🤖 Claude explanations:</span>
+    <input type="password" id="api-key-input" placeholder="sk-ant-... (paste your Anthropic API key)" />
+    <button class="btn" onclick="saveApiKey()" style="padding:4px 12px;font-size:12px">Save</button>
+    <span id="api-key-status" style="font-size:11px;color:var(--text3)">Not set — explanations disabled</span>
+    <span class="dismiss" onclick="document.getElementById('api-key-bar').style.display='none'" title="Hide">×</span>
+  </div>
+
+  <!-- EDITOR -->
+  <div id="editor-pane">
+    <div class="pane-header">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3l3 3-3 3M6 9h5" stroke="#8b949e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Assembly editor
+    </div>
+    <div id="editor-wrap">
+      <div id="asm-overlay"></div>
+      <textarea id="asm-input" spellcheck="false" oninput="onAsmChange()" onscroll="syncOverlay()"># ── RISC-V Demo: Integer · Vector · Float ──────────────────
+
+# ── Integer arithmetic ──────────────────────────────────────
+addi x1, x0,  10      # x1 = 0 + 10  →  x1 = 10
+addi x2, x0,  20      # x2 = 0 + 20  →  x2 = 20
+add  x3, x1,  x2      # x3 = x1 + x2  →  x3 = 30
+sub  x4, x2,  x1      # x4 = x2 - x1  →  x4 = 10
+mul  x5, x1,  x2      # x5 = x1 * x2  →  x5 = 200
+slli x6, x1,  2       # x6 = x1 << 2  →  x6 = 40  (multiply by 4)
+srli x7, x5,  1       # x7 = x5 >> 1  →  x7 = 100 (divide by 2)
+
+# ── Vector unit setup ───────────────────────────────────────
+vsetvli x8, x0, e32,m1,ta,ma  # set vl=4 elements, SEW=32-bit; x8 ← vl
+
+# ── Vector register initialisation ─────────────────────────
+vmv.v.x v0, x1        # v0 = [10, 10, 10, 10]  (broadcast x1 to all lanes)
+vmv.v.x v1, x2        # v1 = [20, 20, 20, 20]  (broadcast x2 to all lanes)
+
+# ── Vector arithmetic ───────────────────────────────────────
+vadd.vv v2, v0, v1    # v2 = v0 + v1  →  [30, 30, 30, 30]
+vsub.vv v3, v1, v0    # v3 = v1 - v0  →  [10, 10, 10, 10]
+vmul.vv v4, v0, v1    # v4 = v0 * v1  →  [200, 200, 200, 200]
+vadd.vx v5, v2, x1    # v5 = v2 + x1  →  [40, 40, 40, 40]  (scalar broadcast add)
+
+# ── Float arithmetic ────────────────────────────────────────
+fcvt.s.w f1, x1        # f1 = (float) x1  →  f1 = 10.0  (integer → float32)
+fcvt.s.w f2, x2        # f2 = (float) x2  →  f2 = 20.0  (integer → float32)
+fadd.s  f3, f1, f2    # f3 = f1 + f2  →  f3 = 30.0
+fmul.s  f4, f1, f2    # f4 = f1 * f2  →  f4 = 200.0
+fdiv.s  f5, f3, f1    # f5 = f3 / f1  →  f5 = 3.0
+</textarea>
+    </div>
+  </div>
+
+  <!-- REGISTERS -->
+  <div id="reg-pane">
+    <div class="pane-header">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="10" height="6" rx="1" stroke="#8b949e" stroke-width="1.1"/><circle cx="3.5" cy="6" r=".8" fill="#8b949e"/><circle cx="6" cy="6" r=".8" fill="#8b949e"/></svg>
+      Register state
+    </div>
+    <div id="reg-scroll">
+      <div id="reg-grid"></div>
+    </div>
+  </div>
+
+  <!-- CONSOLE RESIZE HANDLE -->
+  <div id="console-resize-handle"></div>
+
+  <!-- CONSOLE -->
+  <div id="console-pane">
+    <div class="pane-header">
+      <span style="display:flex;align-items:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3l3 3-3 3" stroke="#8b949e" stroke-width="1.2" stroke-linecap="round"/><line x1="7" y1="9" x2="11" y2="9" stroke="#8b949e" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Execution log
+      </span>
+      <button class="btn" onclick="clearConsole()" style="font-size:10px;padding:2px 8px">clear</button>
+    </div>
+    <div id="console-out"></div>
+  </div>
+
+</div>
+
+<script>
+const VLEN = 128, VL_DEFAULT = 4;
+let fmt = 'hex', pc = 0, history = [], instrList = [], allLines = [];
+
+const state = {
+  x: new Array(32).fill(0n),
+  f: new Array(32).fill(0.0),
+  v: Array.from({ length: 32 }, () => new Array(VL_DEFAULT).fill(0)),
+  vl: VL_DEFAULT, vsew: 32, pc: 0
+};
+
+function cloneState(s) {
+  return {
+    x: [...s.x], f: [...s.f],
+    v: s.v.map(r => [...r]),
+    vl: s.vl, vsew: s.vsew, pc: s.pc
+  };
+}
+
+const xnames = ['zero','ra','sp','gp','tp','t0','t1','t2','s0','s1',
+  'a0','a1','a2','a3','a4','a5','a6','a7',
+  's2','s3','s4','s5','s6','s7','s8','s9','s10','s11',
+  't3','t4','t5','t6'];
+
+function fmtVal(v, isFloat) {
+  if (isFloat) {
+    if (fmt === 'hex') {
+      const buf = new ArrayBuffer(4);
+      new DataView(buf).setFloat32(0, v);
+      return '0x' + new DataView(buf).getUint32(0).toString(16).padStart(8, '0');
+    }
+    if (fmt === 'bin') {
+      const buf = new ArrayBuffer(4);
+      new DataView(buf).setFloat32(0, v);
+      return '0b' + new DataView(buf).getUint32(0).toString(2).padStart(32,'0').slice(0,14) + '…';
+    }
+    return v.toFixed(5);
+  }
+  const u = BigInt.asUintN(32, v);
+  if (fmt === 'hex') return '0x' + u.toString(16).padStart(8, '0');
+  if (fmt === 'bin') return '0b' + u.toString(2).padStart(32,'0').slice(0,14) + '…';
+  return BigInt.asIntN(32, v).toString();
+}
+
+function renderRegs(changed) {
+  const g = document.getElementById('reg-grid');
+  let h = '';
+
+  h += '<div class="reg-section-label">Integer registers — x0 / x31</div>';
+  h += '<div class="reg-grid">';
+  for (let i = 0; i < 32; i++) {
+    const c = changed && changed.x && changed.x.has(i) ? ' changed' : '';
+    h += `<div class="reg-row${c}">
+      <span class="reg-name">x${i}<br><span class="reg-alias">${xnames[i]}</span></span>
+      <span class="reg-val">${fmtVal(state.x[i])}</span>
+    </div>`;
+  }
+  h += '</div>';
+
+  h += '<div class="reg-section-label">Float registers — f0 / f15</div>';
+  h += '<div class="reg-grid">';
+  for (let i = 0; i < 16; i++) {
+    const c = changed && changed.f && changed.f.has(i) ? ' changed' : '';
+    h += `<div class="reg-row${c}">
+      <span class="reg-name">f${i}</span>
+      <span class="reg-val">${fmtVal(state.f[i], true)}</span>
+    </div>`;
+  }
+  h += '</div>';
+
+  h += `<div class="reg-section-label">Vector registers — v0/v7 · VLEN=128 · SEW=32 · VL=${state.vl}</div>`;
+  h += '<div class="vec-section">';
+  for (let i = 0; i < 8; i++) {
+    const c = changed && changed.v && changed.v.has(i) ? ' changed' : '';
+    const cells = state.v[i].slice(0, state.vl).map(e => {
+      const nz = e !== 0 ? ' nz' : '';
+      return `<span class="vec-cell${nz}">${fmtVal(BigInt(e))}</span>`;
+    }).join('');
+    h += `<div class="vec-row${c}"><span class="vec-name">v${i}</span><div class="vec-cells">${cells}</div></div>`;
+  }
+  h += '</div>';
+
+  g.innerHTML = h;
+}
+
+
+
+function buildOverlay(activeIdx) {
+  const ta = document.getElementById('asm-input');
+  const lines = ta.value.split('\n');
+  return lines.map((l, i) => {
+    const txt = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || ' ';
+    const cls = i === activeIdx ? 'asm-line active' : 'asm-line';
+    return `<span class="${cls}">${txt}</span>`;
+  }).join('');
+}
+
+function highlightLine(lineIdx) {
+  const ta = document.getElementById('asm-input');
+  const ov = document.getElementById('asm-overlay');
+  ov.innerHTML = buildOverlay(lineIdx);
+  ov.scrollTop = ta.scrollTop;
+  ov.scrollLeft = ta.scrollLeft;
+}
+
+function clearHighlight() {
+  document.getElementById('asm-overlay').innerHTML = '';
+}
+
+function syncOverlay() {
+  const ta = document.getElementById('asm-input');
+  const ov = document.getElementById('asm-overlay');
+  if (!ov.innerHTML) return;
+  ov.scrollTop = ta.scrollTop;
+  ov.scrollLeft = ta.scrollLeft;
+}
+
+function log(msg, type = 'info') {
+  const d = document.getElementById('console-out');
+  const el = document.createElement('div');
+  el.className = 'log-' + type;
+  el.textContent = msg;
+  d.appendChild(el);
+  d.scrollTop = d.scrollHeight;
+}
+
+function clearConsole() { document.getElementById('console-out').innerHTML = ''; }
+
+function xidx(s) {
+  if (!s) return 0;
+  s = s.toLowerCase().replace(/,/g,'');
+  if (s.startsWith('x')) return Math.max(0,Math.min(31,parseInt(s.slice(1)) || 0));
+  const i = xnames.indexOf(s); return i >= 0 ? i : 0;
+}
+function fidx(s) { if(!s) return 0; s=s.toLowerCase().replace(/,/g,''); return s.startsWith('f') ? Math.max(0,Math.min(31,parseInt(s.slice(1))||0)) : 0; }
+function vidx(s) { if(!s) return 0; s=s.toLowerCase().replace(/,/g,''); return s.startsWith('v') ? Math.max(0,Math.min(31,parseInt(s.slice(1))||0)) : 0; }
+function imm(s) { if(!s) return 0n; s=s.replace(/,/g,''); try { return BigInt(parseInt(s, s.toLowerCase().startsWith('0x') ? 16 : 10) || 0); } catch { return 0n; } }
+
+function execInstr(instr) {
+  const { mnemonic, args } = instr;
+  const cx = new Set(), cf = new Set(), cv = new Set();
+  let ok = true, msg = '';
+
+  const setX = (i, v) => { if (i === 0) return; state.x[i] = BigInt.asIntN(64, v); cx.add(i); };
+  const setF = (i, v) => { state.f[i] = Math.fround(v); cf.add(i); };
+
+  try {
+    switch (mnemonic) {
+      case 'addi': { const d=xidx(args[0]),s=xidx(args[1]),i=imm(args[2]); setX(d,state.x[s]+i); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'add':  { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]+state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'sub':  { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]-state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'mul':  { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]*state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'and':  { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]&state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'or':   { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]|state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'xor':  { const d=xidx(args[0]),s1=xidx(args[1]),s2=xidx(args[2]); setX(d,state.x[s1]^state.x[s2]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'slli': { const d=xidx(args[0]),s=xidx(args[1]),sh=Number(imm(args[2])); setX(d,state.x[s]<<BigInt(sh)); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'srli': { const d=xidx(args[0]),s=xidx(args[1]),sh=Number(imm(args[2])); setX(d,BigInt.asUintN(64,state.x[s])>>BigInt(sh)); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'srai': { const d=xidx(args[0]),s=xidx(args[1]),sh=Number(imm(args[2])); setX(d,state.x[s]>>BigInt(sh)); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'lui':  { const d=xidx(args[0]),i=imm(args[1]); setX(d,i<<20n); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'li':   { const d=xidx(args[0]); setX(d,imm(args[1])); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'mv':   { const d=xidx(args[0]),s=xidx(args[1]); setX(d,state.x[s]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'neg':  { const d=xidx(args[0]),s=xidx(args[1]); setX(d,-state.x[s]); msg=`x${d} ← ${fmtVal(state.x[d])}`; break; }
+      case 'nop':  { msg='nop'; break; }
+
+      case 'vsetvli':
+      case 'vsetvl': {
+        const rd=xidx(args[0]);
+        // parse vl from rs1 (vsetvl) or assume max (vsetvli with x0)
+        const rs1val = mnemonic==='vsetvl' ? Number(state.x[xidx(args[1])]) : 0;
+        state.vl = rs1val > 0 ? Math.min(rs1val, VLEN/32) : VLEN/32;
+        state.vsew = 32;
+        if (rd > 0) { state.x[rd] = BigInt(state.vl); cx.add(rd); }
+        msg = `vl=${state.vl}, vsew=${state.vsew}, rd=x${rd}`;
+        break;
+      }
+
+      case 'vadd.vv': { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]+state.v[s2][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vadd.vx': { const d=vidx(args[0]),s1=vidx(args[1]),xs=xidx(args[2]); const xv=Number(BigInt.asIntN(32,state.x[xs])); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]+xv)|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vadd.vi': { const d=vidx(args[0]),s1=vidx(args[1]),iv=Number(imm(args[2])); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]+iv)|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vsub.vv': { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]-state.v[s2][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vsub.vx': { const d=vidx(args[0]),s1=vidx(args[1]),xs=xidx(args[2]); const xv=Number(BigInt.asIntN(32,state.x[xs])); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]-xv)|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vmul.vv': { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=Math.imul(state.v[s1][i],state.v[s2][i]); cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vmul.vx': { const d=vidx(args[0]),s1=vidx(args[1]),xs=xidx(args[2]); const xv=Number(BigInt.asIntN(32,state.x[xs])); for(let i=0;i<state.vl;i++) state.v[d][i]=Math.imul(state.v[s1][i],xv); cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vand.vv': { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]&state.v[s2][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vor.vv':  { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]|state.v[s2][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vxor.vv': { const d=vidx(args[0]),s1=vidx(args[1]),s2=vidx(args[2]); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]^state.v[s2][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vmv.v.x': { const d=vidx(args[0]),xs=xidx(args[1]); const xv=Number(BigInt.asIntN(32,state.x[xs])); for(let i=0;i<state.vl;i++) state.v[d][i]=xv; cv.add(d); msg=`v${d} splat ${xv}`; break; }
+      case 'vmv.v.i': { const d=vidx(args[0]),iv=Number(imm(args[1])); for(let i=0;i<state.vl;i++) state.v[d][i]=iv; cv.add(d); msg=`v${d} splat ${iv}`; break; }
+      case 'vmv.x.s': { const d=xidx(args[0]),vs=vidx(args[1]); setX(d,BigInt(state.v[vs][0])); msg=`x${d} ← v${vs}[0]=${fmtVal(state.x[d])}`; break; }
+      case 'vmv.s.x': { const d=vidx(args[0]),xs=xidx(args[1]); state.v[d][0]=Number(BigInt.asIntN(32,state.x[xs])); cv.add(d); msg=`v${d}[0] ← x${xs}`; break; }
+      case 'vrsub.vi':{ const d=vidx(args[0]),s1=vidx(args[1]),iv=Number(imm(args[2])); for(let i=0;i<state.vl;i++) state.v[d][i]=(iv-state.v[s1][i])|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vsll.vi': { const d=vidx(args[0]),s1=vidx(args[1]),sh=Number(imm(args[2])); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]<<sh)|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+      case 'vsrl.vi': { const d=vidx(args[0]),s1=vidx(args[1]),sh=Number(imm(args[2])); for(let i=0;i<state.vl;i++) state.v[d][i]=(state.v[s1][i]>>>sh)|0; cv.add(d); msg=`v${d}=[${state.v[d].slice(0,state.vl)}]`; break; }
+
+      case 'fadd.s': { const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]); setF(d,state.f[s1]+state.f[s2]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fsub.s': { const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]); setF(d,state.f[s1]-state.f[s2]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fmul.s': { const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]); setF(d,state.f[s1]*state.f[s2]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fdiv.s': { const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]); setF(d,state.f[s2]===0?Infinity:state.f[s1]/state.f[s2]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fsqrt.s':{ const d=fidx(args[0]),s=fidx(args[1]); setF(d,Math.sqrt(state.f[s])); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fmadd.s':{ const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]),s3=fidx(args[3]); setF(d,state.f[s1]*state.f[s2]+state.f[s3]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fmsub.s':{ const d=fidx(args[0]),s1=fidx(args[1]),s2=fidx(args[2]),s3=fidx(args[3]); setF(d,state.f[s1]*state.f[s2]-state.f[s3]); msg=`f${d} ← ${state.f[d].toFixed(5)}`; break; }
+      case 'fmv.w.x':{ const d=fidx(args[0]),xs=xidx(args[1]); const buf=new ArrayBuffer(4); new DataView(buf).setInt32(0,Number(BigInt.asIntN(32,state.x[xs]))); setF(d,new DataView(buf).getFloat32(0)); msg=`f${d} ← reinterpret(x${xs})=${state.f[d].toFixed(5)}`; break; }
+      case 'fmv.x.w':{ const d=xidx(args[0]),fs=fidx(args[1]); const buf=new ArrayBuffer(4); new DataView(buf).setFloat32(0,state.f[fs]); setX(d,BigInt(new DataView(buf).getInt32(0))); msg=`x${d} ← reinterpret(f${fs})=${fmtVal(state.x[d])}`; break; }
+      case 'fcvt.w.s':{ const d=xidx(args[0]),fs=fidx(args[1]); setX(d,BigInt(Math.trunc(state.f[fs]))); msg=`x${d} ← (int)f${fs}=${fmtVal(state.x[d])}`; break; }
+      case 'fcvt.s.w':{ const d=fidx(args[0]),xs=xidx(args[1]); setF(d,Number(BigInt.asIntN(32,state.x[xs]))); msg=`f${d} ← (float)x${xs}=${state.f[d].toFixed(5)}`; break; }
+
+      default:
+        ok = false;
+        msg = `Unknown instruction: ${mnemonic}`;
+    }
+  } catch(e) {
+    ok = false;
+    msg = `Error in ${mnemonic}: ${e.message}`;
+  }
+
+  return { ok, msg, changed: { x: cx, f: cf, v: cv } };
+}
+
+function parseAsm() {
+  const lines = document.getElementById('asm-input').value.split('\n');
+  allLines = lines;
+  instrList = [];
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].replace(/#.*/,'').trim();
+    if (!stripped) continue;
+    const parts = stripped.replace(/,/g,' ').trim().split(/\s+/);
+    instrList.push({ mnemonic: parts[0].toLowerCase(), args: parts.slice(1), lineIdx: i });
+  }
+  updateStepDisplay();
+}
+
+function updateStepDisplay() {
+  document.getElementById('step-display').textContent = `step ${pc} / ${instrList.length}`;
+}
+
+function stepForward() {
+  if (pc >= instrList.length) { log('▶ End of program', 'info'); return; }
+  history.push({ pc, state: cloneState(state) });
+  const instr = instrList[pc];
+  highlightLine(instr.lineIdx);
+  const res = execInstr(instr);
+  pc++;
+  state.pc = pc * 4;
+  document.getElementById('pc-display').textContent = 'PC: 0x' + state.pc.toString(16).padStart(4,'0');
+  renderRegs(res.changed);
+  log((res.ok ? '✓ ' : '✗ ') + `[${instr.mnemonic}]  ${res.msg}`, res.ok ? 'ok' : 'err');
+  if (res.ok) explainInstr(instr, res.msg);
+  updateStepDisplay();
+  document.getElementById('btn-back').disabled = false;
+  if (pc >= instrList.length) {
+    document.getElementById('btn-step').disabled = true;
+    document.getElementById('btn-run').disabled = true;
+    log('━━ program complete ━━', 'info');
+  }
+}
+
+function stepBack() {
+  if (!history.length) return;
+  const prev = history.pop();
+  pc = prev.pc;
+  const s = prev.state;
+  state.x = [...s.x]; state.f = [...s.f];
+  state.v = s.v.map(r => [...r]);
+  state.vl = s.vl; state.vsew = s.vsew; state.pc = s.pc;
+  if (instrList[pc]) highlightLine(instrList[pc].lineIdx);
+  else clearHighlight();
+  document.getElementById('pc-display').textContent = 'PC: 0x' + state.pc.toString(16).padStart(4,'0');
+  renderRegs(null);
+  updateStepDisplay();
+  log(`↩ stepped back to PC=${pc}`, 'info');
+  document.getElementById('btn-back').disabled = history.length === 0;
+  document.getElementById('btn-step').disabled = false;
+  document.getElementById('btn-run').disabled = false;
+}
+
+let runAllTimer = null;
+function runAll() {
+  if (runAllTimer !== null) {
+    clearTimeout(runAllTimer);
+    runAllTimer = null;
+    document.getElementById('btn-run').classList.remove('running');
+    document.getElementById('btn-run').textContent = '▶▶ Run All';
+    document.getElementById('btn-step').disabled = false;
+    document.getElementById('btn-back').disabled = history.length === 0;
+    return;
+  }
+  document.getElementById('btn-run').classList.add('running');
+  document.getElementById('btn-run').textContent = '⏹ Stop';
+  document.getElementById('btn-step').disabled = true;
+
+  function tick() {
+    if (pc >= instrList.length) {
+      runAllTimer = null;
+      document.getElementById('btn-run').classList.remove('running');
+      document.getElementById('btn-run').textContent = '▶▶ Run All';
+      document.getElementById('btn-step').disabled = true;
+      document.getElementById('btn-run').disabled = true;
+      return;
+    }
+    stepForward();
+    runAllTimer = setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+function resetSim() {
+  if (runAllTimer !== null) { clearTimeout(runAllTimer); runAllTimer = null; }
+  state.x = new Array(32).fill(0n);
+  state.f = new Array(32).fill(0.0);
+  state.v = Array.from({ length: 32 }, () => new Array(VL_DEFAULT).fill(0));
+  state.vl = VL_DEFAULT; state.vsew = 32; state.pc = 0;
+  pc = 0; history = [];
+  clearHighlight();
+  document.getElementById('pc-display').textContent = 'PC: 0x0000';
+  document.getElementById('btn-back').disabled = true;
+  document.getElementById('btn-step').disabled = false;
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-run').classList.remove('running');
+  document.getElementById('btn-run').textContent = '▶▶ Run All';
+  parseAsm();
+  renderRegs(null);
+  log('━━ reset ━━', 'info');
+}
+
+function onAsmChange() {
+  if (runAllTimer !== null) { clearTimeout(runAllTimer); runAllTimer = null; }
+  parseAsm();
+  pc = 0; history = [];
+  document.getElementById('btn-back').disabled = true;
+  document.getElementById('btn-step').disabled = false;
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-run').classList.remove('running');
+  document.getElementById('btn-run').textContent = '▶▶ Run All';
+  document.getElementById('pc-display').textContent = 'PC: 0x0000';
+  clearHighlight();
+}
+
+function setFmt(f) {
+  fmt = f;
+  ['hex','dec','bin'].forEach(x => {
+    document.getElementById('fmt-'+x).className = 'fmt-btn' + (x===f ? ' active' : '');
+  });
+  renderRegs(null);
+}
+
+// ── API key & AI explanation ──
+let apiKey = '';
+function saveApiKey() {
+  const v = document.getElementById('api-key-input').value.trim();
+  if (!v) return;
+  apiKey = v;
+  document.getElementById('api-key-status').textContent = '✓ Key saved — explanations enabled';
+  document.getElementById('api-key-status').style.color = 'var(--green)';
+}
+
+async function explainInstr(instr, simResult) {
+  if (!apiKey) return;
+  const d = document.getElementById('console-out');
+  const pending = document.createElement('div');
+  pending.className = 'log-ai-pending';
+  pending.textContent = '  ↳ asking Claude…';
+  d.appendChild(pending);
+  d.scrollTop = d.scrollHeight;
+
+  const prompt = `You are explaining RISC-V assembly to a developer learning AI kernel programming.
+    Instruction: ${instr.mnemonic} ${instr.args.join(', ')}
+    Simulator result: ${simResult}
+    In one concise sentence (max 20 words), explain in plain English what this instruction just did and why it matters. No markdown.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
+    });
+
+    const data = await res.json();
+    pending.remove();
+    
+    if (data.content && data.content[0]) {
+      const el = document.createElement('div');
+      el.className = 'log-ai';
+      el.textContent = '↳ ' + data.content[0].text.trim();
+      d.appendChild(el);
+      d.scrollTop = d.scrollHeight;
+    }
+  } catch(e) {
+    pending.textContent = '  ↳ explanation unavailable';
+  }
+}
+
+// ── Console resize ──
+(function() {
+  const handle = document.getElementById('console-resize-handle');
+  const pane   = document.getElementById('console-pane');
+  const app    = document.getElementById('app');
+  let dragging = false, startY = 0, startH = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startY = e.clientY; startH = pane.offsetHeight;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startY - e.clientY;
+    const newH = Math.max(60, Math.min(window.innerHeight * 0.6, startH + delta));
+    pane.style.height = newH + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+  });
+})();
+
+// ── init ──
+parseAsm();
+renderRegs(null);
+log('RISC-V Visualizer ready  ·  ' + instrList.length + ' instructions loaded', 'info');
+log('Extensions: RV32I/64I · RVV (VLEN=128) · F/D float', 'info');
+log('Tip: paste your Anthropic API key above to enable natural-language explanations.', 'info');
+</script>
+</body>
+</html>
