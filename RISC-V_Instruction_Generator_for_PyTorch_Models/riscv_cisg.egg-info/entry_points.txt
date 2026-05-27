@@ -1,0 +1,2 @@
+[console_scripts]
+riscv-cisg = riscv_cisg.cli:main
