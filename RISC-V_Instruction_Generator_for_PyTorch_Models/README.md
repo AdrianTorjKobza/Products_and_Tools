@@ -1,23 +1,21 @@
-# RISC-V CISG — Custom Instruction Suggestion Generator
-
-[![CI](https://github.com/your-username/riscv-cisg/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/riscv-cisg/actions)
+# RISC-V Custom Instruction Suggestion Generator
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c)](https://pytorch.org)
 
-> **Hardware-Software Co-design tool** that analyzes ML workloads, identifies compute hotspots, and proposes custom RISC-V ISA extensions targeting **10× kernel speedup**.
+> **HW-SW co-design naive tool** that analyzes ML workloads, identifies compute hotspots, and recomends RISC-V ISA extensions, targeting up to **10× kernel speedup**.
 
 ---
 
 ## Overview
 
-Modern ML accelerators (TPUs, NPUs) achieve their performance through tight hardware-software co-design — tailoring the instruction set to the workload. **RISC-V CISG** automates the first step of this process for RISC-V targets.
+Modern ML accelerators can boost their performance through tight hardware-software co-design by tailoring the instruction set to the workload. **RISC-V CISG** automates the first step of this process for RISC-V targets.
 
-Given a PyTorch model (or a pre-built computation graph), CISG:
+Given a PyTorch model (or a pre-built computation graph), the CISG tool:
 
 1. **Analyzes** the workload using PyTorch FX tracing + `torch.profiler`
 2. **Identifies** the top-N compute hotspots via a multi-metric scoring model (FLOPs, memory traffic, execution time)
-3. **Proposes** custom RISC-V instructions using a deterministic pattern-rule engine
+3. **Proposes** RISC-V instructions using a deterministic pattern-rule engine (no AI models inclusion at this stage)
 4. **Estimates** speedup analytically (Roofline model + Amdahl's Law)
 5. **Emits** production-ready integration artifacts:
    - LLVM TableGen definitions for the RISC-V backend
@@ -69,8 +67,8 @@ TableGen    Spike       + Markdown/JSON reports
 * Clone the repo
 * Rename parent folder to `riscv-cisg`
 * Setup the virtual env: `python -m venv venv`
-- On Linux/MacOs use `source venv/bin/activate`
-- On Windows use `venv\Scripts\activate`
+   * On Linux/MacOs use `source venv/bin/activate`
+   * On Windows use `venv\Scripts\activate`
 * Install dependencies: `pip install -e .`
 
 ### Analyze a Transformer layer
@@ -129,7 +127,7 @@ print(results.summary())
 | `backend/tablegen_emitter.py` | LLVM RISC-V TableGen file generation |
 | `backend/spike_emitter.py` | Spike ISA simulator plugin generation |
 | `reporter/report_generator.py` | Markdown + JSON report generation |
-| `pipeline.py` | `CISGPipeline` — end-to-end orchestration |
+| `pipeline.py` | `CISGPipeline` - end-to-end orchestration |
 | `cli.py` | `riscv-cisg` command-line interface |
 
 ### Built-in Pattern Rules
@@ -343,7 +341,7 @@ ruff check riscv_cisg/ tests/
 riscv-cisg/
 ├── riscv_cisg/
 │   ├── __init__.py
-│   ├── pipeline.py              # CISGPipeline — main orchestrator
+│   ├── pipeline.py              # CISGPipeline - main orchestrator
 │   ├── cli.py                   # riscv-cisg CLI
 │   ├── analyzer/
 │   │   ├── op_graph.py          # OpGraph, OpNode, OpType, TensorShape
@@ -386,10 +384,10 @@ riscv-cisg/
 
 ## Related Work
 
-- [Gemmini](https://github.com/ucb-bar/gemmini) — RISC-V systolic array generator
-- [IREE](https://github.com/openxla/iree) — ML compiler targeting custom backends
-- [FlashAttention](https://github.com/Dao-AILab/flash-attention) — inspiration for `sdpa` instruction
-- [RISC-V "P" extension](https://github.com/riscv/riscv-p-spec) — packed-SIMD standard
+- [Gemmini](https://github.com/ucb-bar/gemmini) - RISC-V systolic array generator
+- [IREE](https://github.com/openxla/iree) - ML compiler targeting custom backends
+- [FlashAttention](https://github.com/Dao-AILab/flash-attention) - inspiration for `sdpa` instruction
+- [RISC-V "P" extension](https://github.com/riscv/riscv-p-spec) - packed-SIMD standard
 
 ---
 
