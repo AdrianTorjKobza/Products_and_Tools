@@ -52,12 +52,12 @@ Install the required Python packages using pip:
 
 The platform requires both the Backend (FastAPI) and Frontend (Streamlit) to run simultaneously. Open two separate terminal windows.
 
-**Terminal 1: Boot the Backend Router**
+**Terminal 1: Boot the Backend Router**<br>
 Start the FastAPI server. This service manages tool execution, Ollama routing, and background MCP processes.
 
     uvicorn backend.main:app --port 8000 --reload
 
-**Terminal 2: Boot the Web GUI**
+**Terminal 2: Boot the Web GUI**<br>
 Open your second terminal window, ensure your virtual environment is still activated, and launch the Streamlit dashboard.
 The dashboard will automatically open in your default browser at `http://localhost:8501`.
 
