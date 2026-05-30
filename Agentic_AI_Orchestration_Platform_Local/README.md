@@ -2,6 +2,8 @@
 
 A lightweight, secure, and extensible local Agentic AI Orchestration Platform. Inspired by tools like Claude Code, this platform allows you to build, manage, and interact with autonomous AI Agents entirely on your local machine using Ollama, custom Python Skills, and the Model Context Protocol (MCP).
 
+<img src="https://github.com/AdrianTorjKobza/Products_and_Tools/blob/808ca3ad06ed85357838ece93dc297665aca44a5/Agentic_AI_Orchestration_Platform_Local/screenshot.jpg">
+
 ## Key Features
 
 - **Model Context Protocol (MCP) Integration:** Dynamically spawn and manage local MCP servers (Node.js/Python) to grant your agent access to file systems, Git repositories, databases, and more.
