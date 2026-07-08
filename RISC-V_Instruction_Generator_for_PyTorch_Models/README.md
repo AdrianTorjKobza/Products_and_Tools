@@ -1,9 +1,8 @@
 # RISC-V Custom Instruction Suggestion Generator
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c)](https://pytorch.org)
 
-> **HW-SW co-design naive tool** that analyzes ML workloads, identifies compute hotspots, and recomends RISC-V ISA extensions, targeting up to **10× kernel speedup**.
+**HW-SW co-design naive tool** that analyzes ML workloads, identifies compute hotspots, and recomends RISC-V ISA extensions, targeting up to **10× kernel speedup**.
 
 ---
 
@@ -390,7 +389,3 @@ riscv-cisg/
 - [RISC-V "P" extension](https://github.com/riscv/riscv-p-spec) - packed-SIMD standard
 
 ---
-
-## License
-
-MIT © 2024 — see [LICENSE](LICENSE)
